@@ -1,0 +1,50 @@
+name: Notify on Review Wanted
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  notifyOnReviewWanted:
+    name: Notify on Review Wanted
+    if: github.repository == 'PDFtoMark/gab-poc-nodejs-slack-title' && github.event.label.name == 'review wanted'
+    runs-on: ubuntu-latest
+    steps:
+      # ---- verbatim copy of nodejs/node .github/workflows/notify-on-review-wanted.yml lines 18-34 ----
+      - name: Determine PR or Issue
+        id: define-message
+        env:
+          TITLE_ISSUE: ${{ github.event.issue.title }}
+          TITLE_PR: ${{ github.event.pull_request.title }}
+        run: |
+          if [[ -n "${{ github.event.pull_request.number }}" ]]; then
+            number="${{ github.event.pull_request.number }}"
+            link="https://github.com/${{ github.repository }}/pull/$number"
+            echo "message=The PR (#$number) requires review from Node.js maintainers. See: $link" >> "$GITHUB_OUTPUT"
+            echo "title=$TITLE_PR" >> "$GITHUB_OUTPUT"
+          else
+            number="${{ github.event.issue.number }}"
+            link="https://github.com/${{ github.repository }}/issues/$number"
+            echo "message=The issue (#$number) requires review from Node.js maintainers. See: $link" >> "$GITHUB_OUTPUT"
+            echo "title=$TITLE_ISSUE" >> "$GITHUB_OUTPUT"
+          fi
+      # ---- end verbatim copy ----
+
+      # Stand-in for the Slack step: shows exactly what would be sent as
+      # SLACK_TITLE / SLACK_MESSAGE (env values passed to rtCamp/action-slack-notify).
+      - name: Show what would be sent to Slack
+        env:
+          SLACK_TITLE: ${{ steps.define-message.outputs.title }}
+          SLACK_MESSAGE: ${{ steps.define-message.outputs.message }}
+        run: |
+          {
+            echo "=== SLACK_TITLE START ==="
+            printf '%s\n' "$SLACK_TITLE"
+            echo "=== SLACK_TITLE END ==="
+            echo "=== SLACK_MESSAGE START ==="
+            printf '%s\n' "$SLACK_MESSAGE"
+            echo "=== SLACK_MESSAGE END ==="
+          } | tee -a "$GITHUB_STEP_SUMMARY"
